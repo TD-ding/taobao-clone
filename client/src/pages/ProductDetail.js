@@ -11,6 +11,8 @@ export default function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [msg, setMsg] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   useEffect(() => {
     api.get(`/products/${id}`).then(setProduct).catch(() => navigate('/'));
@@ -18,22 +20,28 @@ export default function ProductDetail() {
 
   const addToCart = async () => {
     if (!user) return navigate('/login');
+    setAdding(true);
     try {
       await api.post('/users/cart', { product_id: parseInt(id), quantity });
       setMsg('已加入购物车');
       setTimeout(() => setMsg(''), 2000);
     } catch (e) { setMsg(e.message); }
+    setAdding(false);
   };
 
   const buyNow = async () => {
     if (!user) return navigate('/login');
+    setBuying(true);
     try {
       await api.post('/users/cart', { product_id: parseInt(id), quantity });
       navigate('/cart');
     } catch (e) { setMsg(e.message); }
+    setBuying(false);
   };
 
   if (!product) return <div className="container"><div className="empty-state"><div className="icon">⏳</div><p>加载中...</p></div></div>;
+
+  const isOffShelf = product.status !== 'active';
 
   return (
     <div className="container">
@@ -53,18 +61,23 @@ export default function ProductDetail() {
             <span>库存：{product.stock}</span>
           </div>
           <p style={{ color: '#666', fontSize: 14, lineHeight: 1.8, margin: '12px 0' }}>{product.description}</p>
+          {isOffShelf && <div style={{ color: '#ff4400', fontWeight: 'bold', margin: '12px 0' }}>该商品已下架</div>}
           <div className="quantity-selector">
             <span>数量：</span>
-            <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={isOffShelf}>-</button>
             <span>{quantity}</span>
-            <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}>+</button>
+            <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} disabled={isOffShelf}>+</button>
             <span style={{ fontSize: 12, color: '#999' }}>(库存{product.stock}件)</span>
           </div>
           <div className="actions">
-            <button className="btn-secondary" onClick={addToCart}>加入购物车</button>
-            <button className="btn-primary" onClick={buyNow}>立即购买</button>
+            <button className="btn-secondary" onClick={addToCart} disabled={isOffShelf || adding}>
+              {adding ? '添加中...' : '加入购物车'}
+            </button>
+            <button className="btn-primary" onClick={buyNow} disabled={isOffShelf || buying}>
+              {buying ? '处理中...' : '立即购买'}
+            </button>
           </div>
-          {msg && <p style={{ color: '#ff4400', marginTop: 12 }}>{msg}</p>}
+          {msg && <p style={{ color: msg.includes('成功') || msg.includes('购物车') ? '#4caf50' : '#ff4400', marginTop: 12 }}>{msg}</p>}
         </div>
       </div>
     </div>

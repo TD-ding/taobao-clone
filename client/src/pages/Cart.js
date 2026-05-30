@@ -12,6 +12,7 @@ export default function Cart() {
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -37,15 +38,21 @@ export default function Cart() {
   };
 
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const hasOffShelf = items.some(i => i.product_status !== 'active');
 
   const handleCheckout = async () => {
-    if (!address || !phone) { setError('收货地址和联系电话不���为空'); return; }
+    if (!address || !phone) { setError('收货地址和联系电话不能为空'); return; }
+    setSubmitting(true);
+    setError('');
     try {
-      const orderItems = items.map(i => ({ product_id: i.product_id, quantity: i.quantity }));
+      const orderItems = items.filter(i => i.product_status === 'active').map(i => ({ product_id: i.product_id, quantity: i.quantity }));
+      if (!orderItems.length) { setError('没有可下单的商品'); setSubmitting(false); return; }
       await api.post('/orders', { items: orderItems, address, phone, note });
       setShowCheckout(false);
+      alert('下单成功！');
       navigate('/orders');
     } catch (e) { setError(e.message); }
+    setSubmitting(false);
   };
 
   if (!user) return <div className="container"><div className="empty-state"><div className="icon">🔒</div><p>请先登录</p><button className="btn-primary" onClick={() => navigate('/login')}>去登录</button></div></div>;
@@ -59,14 +66,14 @@ export default function Cart() {
         {items.length ? (
           <>
             {items.map(item => (
-              <div key={item.id} className="cart-item">
+              <div key={item.id} className="cart-item" style={item.product_status !== 'active' ? { opacity: 0.5 } : {}}>
                 <div className="item-img" onClick={() => navigate(`/product/${item.product_id}`)} style={{ cursor: 'pointer' }}>
                   {item.image ? <img src={item.image} alt={item.product_name} /> : <span style={{ fontSize: 30 }}>📦</span>}
                 </div>
                 <div className="item-info">
                   <div className="name">{item.product_name}</div>
                   <div className="price">{formatPrice(item.price)}</div>
-                  {item.product_status !== 'active' && <div style={{ color: '#ff4400', fontSize: 12 }}>已下架</div>}
+                  {item.product_status !== 'active' && <div style={{ color: '#ff4400', fontSize: 12 }}>已下架，结算时将跳过</div>}
                 </div>
                 <div className="qty-controls">
                   <button onClick={() => updateQty(item.id, item.quantity - 1, item.stock)}>-</button>
@@ -79,7 +86,9 @@ export default function Cart() {
             ))}
             <div className="cart-footer">
               <div className="total">合计：<span>{formatPrice(totalPrice)}</span></div>
-              <button className="btn-primary" onClick={() => setShowCheckout(true)}>去结算</button>
+              <button className="btn-primary" onClick={() => setShowCheckout(true)} disabled={hasOffShelf && !items.some(i => i.product_status === 'active')}>
+                去结算
+              </button>
             </div>
           </>
         ) : (
@@ -107,7 +116,9 @@ export default function Cart() {
             {error && <p className="error-msg">{error}</p>}
             <div className="actions">
               <button className="btn-outline" onClick={() => setShowCheckout(false)}>取消</button>
-              <button className="btn-primary" onClick={handleCheckout}>提交订单</button>
+              <button className="btn-primary" onClick={handleCheckout} disabled={submitting}>
+                {submitting ? '提交中...' : '提交订单'}
+              </button>
             </div>
           </div>
         </div>

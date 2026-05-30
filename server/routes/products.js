@@ -7,10 +7,16 @@ function escapeLike(str) {
   return str.replace(/[%_\\]/g, '\\$&');
 }
 
+function sanitizePagination(page, limit, maxLimit = 100) {
+  const p = Math.max(1, parseInt(page) || 1);
+  const l = Math.max(1, Math.min(parseInt(limit) || 20, maxLimit));
+  return { page: p, limit: l, offset: (p - 1) * l };
+}
+
 router.get('/', (req, res) => {
   const db = getDb();
-  const { keyword, category_id, min_price, max_price, sort, page = 1, limit = 20 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const { keyword, category_id, min_price, max_price, sort } = req.query;
+  const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit);
 
   let where = "WHERE p.status = 'active'";
   const params = [];
@@ -32,9 +38,9 @@ router.get('/', (req, res) => {
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM products p ${where}`).get(...params);
   const products = db.prepare(
     `SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ${where} ${orderBy} LIMIT ? OFFSET ?`
-  ).all(...params, parseInt(limit), offset);
+  ).all(...params, limit, offset);
 
-  res.json({ products, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
+  res.json({ products, total: countRow.total, page, totalPages: Math.ceil(countRow.total / limit) });
 });
 
 router.get('/categories', (req, res) => {
@@ -50,4 +56,4 @@ router.get('/:id', (req, res) => {
   res.json(product);
 });
 
-module.exports = router;
+module.exports = { router, escapeLike, sanitizePagination };

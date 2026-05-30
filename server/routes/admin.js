@@ -1,10 +1,7 @@
 const express = require('express');
 const getDb = require('../db');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-
-function escapeLike(str) {
-  return str.replace(/[%_\\]/g, '\\$&');
-}
+const { escapeLike, sanitizePagination } = require('./products');
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
@@ -12,8 +9,8 @@ router.use(authMiddleware, adminMiddleware);
 // Products CRUD
 router.get('/products', (req, res) => {
   const db = getDb();
-  const { keyword, status, page = 1, limit = 20 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const { keyword, status } = req.query;
+  const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit);
 
   let where = '';
   const params = [];
@@ -28,9 +25,9 @@ router.get('/products', (req, res) => {
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM products p ${where}`).get(...params);
   const products = db.prepare(
     `SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id ${where} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
-  ).all(...params, parseInt(limit), offset);
+  ).all(...params, limit, offset);
 
-  res.json({ products, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
+  res.json({ products, total: countRow.total, page, totalPages: Math.ceil(countRow.total / limit) });
 });
 
 router.post('/products', (req, res) => {
@@ -51,16 +48,26 @@ router.put('/products/:id', (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ message: '商品不存在' });
 
-  const { name, description, price, original_price, image, images, category_id, stock, status } = req.body;
-  if (price !== undefined && price !== null && (typeof price !== 'number' || price < 0)) {
-    return res.status(400).json({ message: '价格不能为负数' });
+  const updates = {};
+  const values = [];
+  const allowedFields = ['name', 'description', 'price', 'original_price', 'image', 'images', 'category_id', 'stock', 'status'];
+
+  for (const field of allowedFields) {
+    if (field in req.body) {
+      const val = req.body[field];
+      if (field === 'price' && (typeof val !== 'number' || val < 0)) {
+        return res.status(400).json({ message: '价格不能为负数' });
+      }
+      updates[field] = val === '' ? null : (val ?? null);
+      values.push(updates[field]);
+    }
   }
 
-  db.prepare(
-    `UPDATE products SET name=COALESCE(?,name), description=COALESCE(?,description), price=COALESCE(?,price),
-     original_price=COALESCE(?,original_price), image=COALESCE(?,image), images=COALESCE(?,images),
-     category_id=COALESCE(?,category_id), stock=COALESCE(?,stock), status=COALESCE(?,status) WHERE id=?`
-  ).run(name || null, description || null, price ?? null, original_price ?? null, image || null, images || null, category_id ?? null, stock ?? null, status || null, req.params.id);
+  if (!values.length) return res.status(400).json({ message: '没有要更新的字段' });
+
+  const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+  values.push(req.params.id);
+  db.prepare(`UPDATE products SET ${setClause} WHERE id = ?`).run(...values);
 
   res.json({ message: '商品更新成功' });
 });
@@ -76,8 +83,8 @@ router.delete('/products/:id', (req, res) => {
 // Orders management
 router.get('/orders', (req, res) => {
   const db = getDb();
-  const { status, page = 1, limit = 20 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const { status } = req.query;
+  const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit);
 
   let where = '';
   const params = [];
@@ -86,7 +93,7 @@ router.get('/orders', (req, res) => {
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM orders o ${where}`).get(...params);
   const orders = db.prepare(
     `SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id = u.id ${where} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
-  ).all(...params, parseInt(limit), offset);
+  ).all(...params, limit, offset);
 
   const orderIds = orders.map(o => o.id);
   let itemsByOrder = {};
@@ -100,7 +107,7 @@ router.get('/orders', (req, res) => {
   }
 
   const ordersWithItems = orders.map(order => ({ ...order, items: itemsByOrder[order.id] || [] }));
-  res.json({ orders: ordersWithItems, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
+  res.json({ orders: ordersWithItems, total: countRow.total, page, totalPages: Math.ceil(countRow.total / limit) });
 });
 
 router.put('/orders/:id/status', (req, res) => {
@@ -119,8 +126,8 @@ router.put('/orders/:id/status', (req, res) => {
 // Users management
 router.get('/users', (req, res) => {
   const db = getDb();
-  const { keyword, page = 1, limit = 20 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const { keyword } = req.query;
+  const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit);
 
   let where = '';
   const params = [];
@@ -133,9 +140,9 @@ router.get('/users', (req, res) => {
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM users ${where}`).get(...params);
   const users = db.prepare(
     `SELECT id, username, role, email, phone, avatar, created_at FROM users ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).all(...params, parseInt(limit), offset);
+  ).all(...params, limit, offset);
 
-  res.json({ users, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
+  res.json({ users, total: countRow.total, page, totalPages: Math.ceil(countRow.total / limit) });
 });
 
 router.put('/users/:id/role', (req, res) => {
@@ -157,6 +164,8 @@ router.delete('/users/:id', (req, res) => {
   if (!user) return res.status(404).json({ message: '用户不存在' });
 
   const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)').run(req.params.id);
+    db.prepare('DELETE FROM orders WHERE user_id = ?').run(req.params.id);
     db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(req.params.id);
     db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   });

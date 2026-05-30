@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, STATUS_MAP } from '../utils/format';
+import { formatPrice, formatTime, STATUS_MAP } from '../utils/format';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -25,7 +25,7 @@ export default function OrderDetail() {
           <span>订单号：{order.id}</span>
           <span className={`status-badge ${STATUS_MAP[order.status]?.class}`}>{STATUS_MAP[order.status]?.label}</span>
         </div>
-        <div style={{ color: '#666', fontSize: 14, margin: '8px 0' }}>下单时间：{order.created_at}</div>
+        <div style={{ color: '#666', fontSize: 14, margin: '8px 0' }}>下单时间：{formatTime(order.created_at)}</div>
         <div style={{ color: '#666', fontSize: 14, margin: '8px 0' }}>收货地址：{order.address}</div>
         <div style={{ color: '#666', fontSize: 14, margin: '8px 0' }}>联系电话：{order.phone}</div>
         {order.note && <div style={{ color: '#666', fontSize: 14, margin: '8px 0' }}>备注：{order.note}</div>}

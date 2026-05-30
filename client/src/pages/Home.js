@@ -13,14 +13,12 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [selectedCat, setSelectedCat] = useState('');
   const [sort, setSort] = useState('');
-  const [inputVal, setInputVal] = useState('');
   const debounceRef = useRef(null);
 
   const keyword = searchParams.get('keyword') || '';
+  const [inputVal, setInputVal] = useState(keyword);
 
-  useEffect(() => {
-    setInputVal(keyword);
-  }, [keyword]);
+  useEffect(() => { setInputVal(keyword); }, [keyword]);
 
   useEffect(() => {
     api.get('/products/categories').then(setCategories).catch(() => {});

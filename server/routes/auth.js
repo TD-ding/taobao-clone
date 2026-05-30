@@ -9,6 +9,14 @@ const router = express.Router();
 const registerLimiter = new Map();
 const REGISTER_WINDOW = 60 * 1000;
 const REGISTER_MAX = 3;
+const CLEANUP_INTERVAL = 5 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of registerLimiter) {
+    if (now - record.start > REGISTER_WINDOW) registerLimiter.delete(ip);
+  }
+}, CLEANUP_INTERVAL);
 
 function checkRegisterLimit(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;
