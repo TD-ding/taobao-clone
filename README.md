@@ -21,7 +21,7 @@
 | 数据库 | SQLite (better-sqlite3) |
 | 认证 | JWT (jsonwebtoken + bcryptjs) |
 | 文件上传 | Multer |
-| 测试 | Jest、Supertest（后端）、React Testing Library（前端） |
+| 测试 | Jest + Supertest（后端）、React Testing Library（前端） |
 | 部署 | Docker、GitHub Actions CI |
 
 ## 目录结构
@@ -29,149 +29,125 @@
 ```
 taobao-clone/
 ├── .github/workflows/
-│   └── ci.yml                      # GitHub Actions CI 配置
-├── Dockerfile                      # Docker 镜像构建
-├── docker-compose.yml              # Docker Compose 编排
-├── .dockerignore                   # Docker 构建忽略
-├── server/                         # 后端
-│   ├── server.js                   # Express 入口（含自动初始化数据库）
-│   ├── db.js                       # SQLite 连接
-│   ├── init-db.js                  # 建表 & 种子数据（可被 require）
-│   ├── init-db-cli.js              # 单独运行初始化的入口
-│   ├── .env.example                # 环境变量模板
-│   ├── tests/                      # 后端单元测试
-│   │   └── api.test.js             # API 集成测试
+│   └── ci.yml                        # GitHub Actions CI
+├── Dockerfile                        # Docker 镜像构建
+├── docker-compose.yml                # Docker Compose 编排
+├── .dockerignore
+├── docs/                             # 项目文档
+│   ├── api.md                        # API 接口文档
+│   ├── database.md                   # 数据库设计文档
+│   ├── architecture.md               # 架构设计文档
+│   └── deployment.md                 # 部署文档
+├── server/                           # 后端
+│   ├── server.js                     # Express 入口
+│   ├── db.js                         # SQLite 连接（WAL 模式）
+│   ├── init-db.js                    # 建表 & 种子数据
+│   ├── init-db-cli.js                # 单独初始化入口
+│   ├── .env.example                  # 环境变量模板
+│   ├── tests/
+│   │   └── api.test.js               # API 集成测试（40 用例）
 │   ├── middleware/
-│   │   └── auth.js                 # JWT 认证 / 管理员权限中间件
+│   │   └── auth.js                   # JWT 认证 / 管理员权限中间件
 │   ├── routes/
-│   │   ├── auth.js                 # 注册（含限流）/ 登录
-│   │   ├── products.js             # 商品列表 / 详情 / 分类（含分页校验）
-│   │   ├── orders.js               # 下单 / 查询 / 取消
-│   │   ├── users.js                # 购物车 CRUD
-│   │   ├── profile.js              # 个人资料 / 收货地址 / 收藏 / 评价
-│   │   ├── admin.js                # 管理员：商品 / 订单 / 用户 / 分类
-│   │   ├── upload.js               # 图片上传（crypto 随机文件名）
-│   │   └── stats.js                # 统计概览 / 销售趋势 / 排行
-│   └── uploads/                    # 上传文件目录
-├── client/                         # 前端
+│   │   ├── auth.js                   # 注册（含限流）/ 登录
+│   │   ├── products.js               # 商品列表 / 详情 / 分类
+│   │   ├── orders.js                 # 下单 / 查询 / 取消
+│   │   ├── users.js                  # 购物车 CRUD
+│   │   ├── profile.js                # 个人资料 / 地址 / 收藏 / 评价
+│   │   ├── admin.js                  # 管理员：商品 / 分类 / 订单 / 用户
+│   │   ├── upload.js                 # 图片上传
+│   │   └── stats.js                  # 数据统计
+│   └── uploads/                      # 上传文件目录
+├── client/                           # 前端
 │   └── src/
-│       ├── App.js                  # 路由配置
-│       ├── setupTests.js           # Jest 测试配置
+│       ├── App.js                    # 路由配置
+│       ├── index.js                  # 入口
+│       ├── setupTests.js             # Jest 测试配置
 │       ├── context/
-│       │   └── AuthContext.js      # 全局用户状态
+│       │   └── AuthContext.js        # 全局用户状态 + 购物车数量
 │       ├── utils/
-│       │   ├── api.js              # 请求封装（含 401 自动跳转）
-│       │   └── format.js           # 价格格���化 / 状态映射 / 时间格式化
+│       │   ├── api.js                # 请求封装（含 401 自动跳转）
+│       │   └── format.js             # 价格 / 状态 / 时间格式化
 │       ├── components/
-│       │   ├── Navbar.js           # 顶部导航（含购物车数量、移动端折叠菜单）
-│       │   └── Pagination.js       # 分页
-│       ├── tests/                  # 前端单元测试
-│       │   ├── format.test.js      # 工具函数测试
-│       │   ├── Pagination.test.js  # 分页组件测试
-│       │   └── NotFound.test.js    # 404 页面测试
-│       ├── pages/                  # 用户端页面
+│       │   ├── Navbar.js             # 顶部导航
+│       │   └── Pagination.js         # 分页控件
+│       ├── tests/
+│       │   ├── format.test.js        # 工具函数测试
+│       │   ├── Pagination.test.js    # 分页组件测试
+│       │   └── NotFound.test.js      # 404 页面测试
+│       ├── pages/                    # 用户端页面
 │       │   ├── Home.js
-│       │   ├── ProductDetail.js    # 含多图轮播、收藏、评价
-│       │   ├── Cart.js             # 含地址选择
+│       │   ├── ProductDetail.js      # 含多图轮播、收藏、评价
+│       │   ├── Cart.js               # 含地址选择
 │       │   ├── Login.js
 │       │   ├── Register.js
 │       │   ├── Orders.js
 │       │   ├── OrderDetail.js
-│       │   ├── Profile.js          # 个人中心（资料编辑 / 地址管理）
-│       │   ├── Favorites.js        # 我的收藏
-│       │   └── NotFound.js         # 404 页面
-│       ├── pages/admin/            # 管理后台页面
+│       │   ├── Profile.js            # 个人中心
+│       │   ├── Favorites.js          # 我的收藏
+│       │   └── NotFound.js           # 404 页面
+│       ├── pages/admin/              # 管理后台页面
 │       │   ├── AdminLayout.js
-│       │   ├── Dashboard.js        # 含销售趋势折线图
+│       │   ├── Dashboard.js          # 含销售趋势折线图
 │       │   ├── AdminProducts.js
-│       │   ├── AdminCategories.js  # 分类管理
-│       │   ├── AdminOrders.js      # 含搜索
+│       │   ├── AdminCategories.js    # 分类管理
+│       │   ├── AdminOrders.js        # 含搜索
 │       │   └── AdminUsers.js
 │       └── styles/
 │           └── App.css
 └── README.md
 ```
 
-## 如何运行
+## 快速开始
 
-### 1. 安装依赖
+### 本地开发
 
 ```bash
-# 后端
+# 1. 安装依赖
 cd server && npm install
-
-# 前端
 cd ../client && npm install
-```
 
-### 2. 配置环境变量
-
-```bash
-cd server
-cp .env.example .env
+# 2. 配置环境变量
+cd server && cp .env.example .env
 # 编辑 .env 设置 JWT_SECRET 和 CORS_ORIGIN
-```
 
-### 3. 初始化数据库
-
-```bash
+# 3. 初始化数据库（首次启动也会自动初始化）
 cd server && npm run init-db
+
+# 4. 启动
+cd server && npm run dev    # 后端，端口 3001
+cd client && npm start      # 前端，端口 3000
 ```
 
-> 首次启动后端时也会自动初始化数据库。
-
-### 4. 启动
+### Docker 部署
 
 ```bash
-# 后端（端口 3001）
-cd server && npm run dev
-
-# 前端（端口 3000，开发代理已指向后端）
-cd client && npm start
-```
-
-### 5. 访问
-
-- 商城首页：http://localhost:3000
-- 个人中心：http://localhost:3000/profile
-- 我的收藏：http://localhost:3000/favorites
-- 管理后台：http://localhost:3000/admin
-
-## 运行测试
-
-```bash
-# 后端测试（40 个用例）
-cd server && npm test
-
-# 前端测试
-cd client && npm test
-
-# 前端 CI 模式（无交互 + 覆盖率）
-cd client && npm run test:ci
-```
-
-## Docker 部署
-
-```bash
-# 构建并启动
 docker compose up -d
-
-# 访问
-open http://localhost:3001
+# 访问 http://localhost:3001
 ```
 
-环境变量可在 `docker-compose.yml` 或 `.env` 中配置：
+### 运行测试
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | 3001 | 服务端口 |
-| `JWT_SECRET` | change_this_in_production | JWT 签名密钥 |
-| `CORS_ORIGIN` | http://localhost:3000 | 允许的前端来源 |
+```bash
+cd server && npm test              # 后端测试（40 用例）
+cd client && npm test              # 前端测试（交互模式）
+cd client && npm run test:ci       # 前端测试（CI 模式 + 覆盖率）
+```
 
-## CI
+### 访问地址
 
-项目配置了 GitHub Actions（`.github/workflows/ci.yml`），在 push 和 PR 时自动运行：
+| 页面 | URL |
+|------|-----|
+| 商城首页 | http://localhost:3000 |
+| 个人中心 | http://localhost:3000/profile |
+| 我的收藏 | http://localhost:3000/favorites |
+| 管理后台 | http://localhost:3000/admin |
 
-1. **server-test** — 后端 API 测试
-2. **client-test** — 前端测试 + 构建验证
-3. **docker-build** — Docker 镜像构建（依赖测试通过）
+## 详细文档
+
+| 文档 | 说明 |
+|------|------|
+| [API 接口文档](docs/api.md) | 全部 RESTful API 端点说明 |
+| [数据库设计](docs/database.md) | 表结构、字段、关系图 |
+| [架构设计](docs/architecture.md) | 技术选型、关键设计决策、安全措施 |
+| [部署文档](docs/deployment.md) | 本地开发、Docker 部署、CI/CD 配置 |
