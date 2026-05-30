@@ -14,32 +14,30 @@ router.post('/', (req, res) => {
   if (!phone) return res.status(400).json({ message: '联系电话不能为空' });
 
   const db = getDb();
-  let totalPrice = 0;
-  const orderItems = [];
-
-  for (const item of items) {
-    const product = db.prepare('SELECT * FROM products WHERE id = ? AND status = ?').get(item.product_id, 'active');
-    if (!product) return res.status(400).json({ message: `商品ID ${item.product_id} 不存在或已下架` });
-    if (product.stock < item.quantity) return res.status(400).json({ message: `${product.name} 库存不足` });
-    totalPrice += product.price * item.quantity;
-    orderItems.push({ ...item, product, price: product.price });
-  }
-
-  const insertItem = db.prepare(
-    'INSERT INTO order_items (order_id, product_id, quantity, price, product_name, product_image) VALUES (?, ?, ?, ?, ?, ?)'
-  );
-  const updateStock = db.prepare('UPDATE products SET stock = stock - ?, sales = sales + ? WHERE id = ?');
-  const deleteCartItem = db.prepare('DELETE FROM cart_items WHERE user_id = ? AND product_id = ?');
 
   const transaction = db.transaction(() => {
+    let totalPrice = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+      const product = db.prepare('SELECT * FROM products WHERE id = ? AND status = ?').get(item.product_id, 'active');
+      if (!product) throw new Error(`商品ID ${item.product_id} 不存在或已下架`);
+      if (product.stock < item.quantity) throw new Error(`${product.name} 库存不足`);
+      totalPrice += product.price * item.quantity;
+      orderItems.push({ ...item, product, price: product.price });
+    }
+
     const orderResult = db.prepare(
       'INSERT INTO orders (user_id, total_price, status, address, phone, note) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(req.user.id, totalPrice, 'pending', address, phone, note || null);
 
     for (const item of orderItems) {
-      insertItem.run(orderResult.lastInsertRowid, item.product_id, item.quantity, item.price, item.product.name, item.product.image);
-      updateStock.run(item.quantity, item.quantity, item.product_id);
-      deleteCartItem.run(req.user.id, item.product_id);
+      db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price, product_name, product_image) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(orderResult.lastInsertRowid, item.product_id, item.quantity, item.price, item.product.name, item.product.image);
+      db.prepare('UPDATE products SET stock = stock - ?, sales = sales + ? WHERE id = ?')
+        .run(item.quantity, item.quantity, item.product_id);
+      db.prepare('DELETE FROM cart_items WHERE user_id = ? AND product_id = ?')
+        .run(req.user.id, item.product_id);
     }
 
     return orderResult.lastInsertRowid;
@@ -49,7 +47,7 @@ router.post('/', (req, res) => {
     const orderId = transaction();
     res.json({ message: '下单成功', orderId });
   } catch (e) {
-    res.status(500).json({ message: '下单失败，请重试' });
+    res.status(400).json({ message: e.message || '下单失败，请重试' });
   }
 });
 

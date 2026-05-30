@@ -76,7 +76,16 @@ router.delete('/products/:id', (req, res) => {
   const db = getDb();
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.status(404).json({ message: '商品不存在' });
-  db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM cart_items WHERE product_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM favorites WHERE product_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM reviews WHERE product_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM order_items WHERE product_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+  });
+  transaction();
+
   res.json({ message: '商品已删除' });
 });
 
@@ -91,7 +100,7 @@ router.get('/orders', (req, res) => {
   if (status) { conditions.push('o.status = ?'); params.push(status); }
   if (keyword) {
     const escaped = escapeLike(keyword);
-    conditions.push('(o.id LIKE ? ESCAPE ? OR u.username LIKE ? ESCAPE ?)');
+    conditions.push('(CAST(o.id AS TEXT) LIKE ? ESCAPE ? OR u.username LIKE ? ESCAPE ?)');
     params.push(`%${escaped}%`, '\\', `%${escaped}%`, '\\');
   }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -125,7 +134,30 @@ router.put('/orders/:id/status', (req, res) => {
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!order) return res.status(404).json({ message: '订单不存在' });
 
-  db.prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(status, req.params.id);
+  const STATUS_LABEL = { pending: '待付款', paid: '已付款', shipped: '已发货', delivered: '已收货', cancelled: '已取消' };
+  const ALLOWED_TRANSITIONS = {
+    pending: ['paid', 'cancelled'],
+    paid: ['shipped', 'cancelled'],
+    shipped: ['delivered'],
+    delivered: [],
+    cancelled: []
+  };
+  const allowed = ALLOWED_TRANSITIONS[order.status] || [];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ message: `订单状态「${STATUS_LABEL[order.status]}」不能改为「${STATUS_LABEL[status] || status}」` });
+  }
+
+  const transaction = db.transaction(() => {
+    db.prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(status, req.params.id);
+    if (status === 'cancelled') {
+      const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(req.params.id);
+      for (const item of items) {
+        db.prepare('UPDATE products SET stock = stock + ?, sales = sales - ? WHERE id = ?').run(item.quantity, item.quantity, item.product_id);
+      }
+    }
+  });
+  transaction();
+
   res.json({ message: '订单状态已更新' });
 });
 

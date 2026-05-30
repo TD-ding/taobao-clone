@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../utils/format';
 
 export default function Favorites() {
-  const { user } = useAuth();
+  const { user, refreshCartCount } = useAuth();
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,7 @@ export default function Favorites() {
     if (!user) return navigate('/login');
     try {
       await api.post('/users/cart', { product_id: productId, quantity: 1 });
+      refreshCartCount();
       alert('已加入购物车');
     } catch (e) { alert(e.message); }
   };
