@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -8,8 +9,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (token) {
-      fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.ok ? res.json() : Promise.reject())
+      api.get('/auth/me')
         .then(data => setUser(data))
         .catch(() => { localStorage.removeItem('token'); setToken(null); setUser(null); });
     }

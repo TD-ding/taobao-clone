@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatPrice } from '../utils/format';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -44,7 +45,7 @@ export default function ProductDetail() {
           <h1>{product.name}</h1>
           <div className="price-box">
             <span className="current">{product.price}</span>
-            {product.original_price && <span className="original">¥{product.original_price}</span>}
+            {product.original_price && <span className="original">{formatPrice(product.original_price)}</span>}
           </div>
           <div className="meta-info">
             <span>分类：{product.category_name || '未分类'}</span>

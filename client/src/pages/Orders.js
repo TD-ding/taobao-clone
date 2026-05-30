@@ -2,15 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatPrice, STATUS_MAP } from '../utils/format';
 import Pagination from '../components/Pagination';
-
-const STATUS_MAP = {
-  pending: { label: '待付款', class: 'status-pending' },
-  paid: { label: '已付款', class: 'status-paid' },
-  shipped: { label: '已发货', class: 'status-shipped' },
-  delivered: { label: '已收货', class: 'status-delivered' },
-  cancelled: { label: '已取消', class: 'status-cancelled' },
-};
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -62,11 +55,11 @@ export default function Orders() {
                 <div style={{ fontSize: 14 }}>{item.product_name}</div>
                 <div style={{ fontSize: 12, color: '#999' }}>x{item.quantity}</div>
               </div>
-              <div style={{ fontWeight: 'bold', color: '#ff4400' }}>¥{(item.price * item.quantity).toFixed(2)}</div>
+              <div style={{ fontWeight: 'bold', color: '#ff4400' }}>{formatPrice(item.price * item.quantity)}</div>
             </div>
           ))}
           <div className="order-footer">
-            <span>合计：<strong style={{ color: '#ff4400', fontSize: 16 }}>¥{order.total_price.toFixed(2)}</strong></span>
+            <span>合计：<strong style={{ color: '#ff4400', fontSize: 16 }}>{formatPrice(order.total_price)}</strong></span>
             <div style={{ display: 'flex', gap: 8 }}>
               {order.status === 'pending' && <button className="btn-outline" onClick={() => cancelOrder(order.id)}>取消订单</button>}
               <button className="btn-outline" onClick={() => navigate(`/orders/${order.id}`)}>查看详情</button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
+import { formatPrice } from '../../utils/format';
 import Pagination from '../../components/Pagination';
 
 export default function AdminProducts() {
@@ -42,12 +43,21 @@ export default function AdminProducts() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError('');
-    if (!form.name || !form.price) { setError('名称和价格不能为空'); return; }
+    const price = parseFloat(form.price);
+    if (!form.name) { setError('名称不能为空'); return; }
+    if (isNaN(price) || price < 0) { setError('价格不能为空且不能为负数'); return; }
     try {
+      const payload = {
+        ...form,
+        price,
+        original_price: form.original_price ? parseFloat(form.original_price) : null,
+        category_id: form.category_id ? parseInt(form.category_id) : null,
+        stock: parseInt(form.stock) || 0
+      };
       if (editProduct) {
-        await api.put(`/admin/products/${editProduct.id}`, { ...form, price: parseFloat(form.price), original_price: form.original_price ? parseFloat(form.original_price) : null, category_id: form.category_id ? parseInt(form.category_id) : null, stock: parseInt(form.stock) || 0 });
+        await api.put(`/admin/products/${editProduct.id}`, payload);
       } else {
-        await api.post('/admin/products', { ...form, price: parseFloat(form.price), original_price: form.original_price ? parseFloat(form.original_price) : null, category_id: form.category_id ? parseInt(form.category_id) : null, stock: parseInt(form.stock) || 0 });
+        await api.post('/admin/products', payload);
       }
       setShowModal(false); fetchProducts();
     } catch (e) { setError(e.message); }
@@ -81,7 +91,7 @@ export default function AdminProducts() {
                 <td>{p.id}</td>
                 <td>{p.image ? <img src={p.image} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} /> : '📦'}</td>
                 <td>{p.name}</td>
-                <td style={{ color: '#ff4400' }}>¥{p.price}</td>
+                <td style={{ color: '#ff4400' }}>{formatPrice(p.price)}</td>
                 <td>{p.stock}</td>
                 <td>{p.sales}</td>
                 <td>{p.category_name || '-'}</td>
@@ -105,8 +115,8 @@ export default function AdminProducts() {
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="form-row">
-                <div className="form-group"><label>价格 *</label><input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
-                <div className="form-group"><label>原价</label><input type="number" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} /></div>
+                <div className="form-group"><label>价格 *</label><input type="number" step="0.01" min="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} /></div>
+                <div className="form-group"><label>原价</label><input type="number" step="0.01" min="0" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} /></div>
               </div>
               <div className="form-row">
                 <div className="form-group"><label>分类</label>
@@ -114,7 +124,7 @@ export default function AdminProducts() {
                     <option value="">无分类</option>{categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                   </select>
                 </div>
-                <div className="form-group"><label>库存</label><input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} /></div>
+                <div className="form-group"><label>库存</label><input type="number" min="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} /></div>
               </div>
               <div className="form-group"><label>描述</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, resize: 'vertical' }} /></div>
               <div className="form-group">

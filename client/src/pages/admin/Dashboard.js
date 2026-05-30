@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
+import { formatPrice } from '../../utils/format';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -24,7 +25,7 @@ export default function Dashboard() {
         <div className="stat-card"><div className="label">商品总数</div><div className="value products">{stats.totalProducts}</div></div>
         <div className="stat-card"><div className="label">用户总数</div><div className="value users">{stats.totalUsers}</div></div>
         <div className="stat-card"><div className="label">订单总数</div><div className="value orders">{stats.totalOrders}</div></div>
-        <div className="stat-card"><div className="label">总营收</div><div className="value revenue">¥{stats.totalRevenue.toFixed(2)}</div></div>
+        <div className="stat-card"><div className="label">总营收</div><div className="value revenue">{formatPrice(stats.totalRevenue)}</div></div>
         <div className="stat-card"><div className="label">待处理订单</div><div className="value orders">{stats.pendingOrders}</div></div>
         <div className="stat-card"><div className="label">配送中订单</div><div className="value orders">{stats.shippedOrders}</div></div>
       </div>
@@ -50,7 +51,7 @@ export default function Dashboard() {
             <thead><tr><th>商品</th><th>价格</th><th>销量</th><th>库存</th></tr></thead>
             <tbody>
               {topProducts.map((p, i) => (
-                <tr key={i}><td>{p.name}</td><td>¥{p.price}</td><td>{p.sales}</td><td>{p.stock}</td></tr>
+                <tr key={i}><td>{p.name}</td><td>{formatPrice(p.price)}</td><td>{p.sales}</td><td>{p.stock}</td></tr>
               ))}
             </tbody>
           </table>

@@ -24,10 +24,6 @@ router.post('/', (req, res) => {
     orderItems.push({ ...item, product, price: product.price });
   }
 
-  const orderResult = db.prepare(
-    'INSERT INTO orders (user_id, total_price, status, address, phone, note) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(req.user.id, totalPrice, 'pending', address, phone, note || null);
-
   const insertItem = db.prepare(
     'INSERT INTO order_items (order_id, product_id, quantity, price, product_name, product_image) VALUES (?, ?, ?, ?, ?, ?)'
   );
@@ -35,15 +31,25 @@ router.post('/', (req, res) => {
   const deleteCartItem = db.prepare('DELETE FROM cart_items WHERE user_id = ? AND product_id = ?');
 
   const transaction = db.transaction(() => {
+    const orderResult = db.prepare(
+      'INSERT INTO orders (user_id, total_price, status, address, phone, note) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.user.id, totalPrice, 'pending', address, phone, note || null);
+
     for (const item of orderItems) {
       insertItem.run(orderResult.lastInsertRowid, item.product_id, item.quantity, item.price, item.product.name, item.product.image);
       updateStock.run(item.quantity, item.quantity, item.product_id);
       deleteCartItem.run(req.user.id, item.product_id);
     }
-  });
-  transaction();
 
-  res.json({ message: '下单成功', orderId: orderResult.lastInsertRowid });
+    return orderResult.lastInsertRowid;
+  });
+
+  try {
+    const orderId = transaction();
+    res.json({ message: '下单成功', orderId });
+  } catch (e) {
+    res.status(500).json({ message: '下单失败，请重试' });
+  }
 });
 
 router.get('/', (req, res) => {
@@ -60,11 +66,18 @@ router.get('/', (req, res) => {
     `SELECT o.* FROM orders o ${where} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
   ).all(...params, parseInt(limit), offset);
 
-  const ordersWithItems = orders.map(order => {
-    const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
-    return { ...order, items };
-  });
+  const orderIds = orders.map(o => o.id);
+  let itemsByOrder = {};
+  if (orderIds.length) {
+    const placeholders = orderIds.map(() => '?').join(',');
+    const allItems = db.prepare(`SELECT * FROM order_items WHERE order_id IN (${placeholders})`).all(...orderIds);
+    for (const item of allItems) {
+      if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+      itemsByOrder[item.order_id].push(item);
+    }
+  }
 
+  const ordersWithItems = orders.map(order => ({ ...order, items: itemsByOrder[order.id] || [] }));
   res.json({ orders: ordersWithItems, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
 });
 

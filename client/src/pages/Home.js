@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { formatPrice } from '../utils/format';
 import Pagination from '../components/Pagination';
 
 export default function Home() {
@@ -12,8 +13,14 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [selectedCat, setSelectedCat] = useState('');
   const [sort, setSort] = useState('');
+  const [inputVal, setInputVal] = useState('');
+  const debounceRef = useRef(null);
 
   const keyword = searchParams.get('keyword') || '';
+
+  useEffect(() => {
+    setInputVal(keyword);
+  }, [keyword]);
 
   useEffect(() => {
     api.get('/products/categories').then(setCategories).catch(() => {});
@@ -33,6 +40,18 @@ export default function Home() {
   }, [keyword, selectedCat, sort, page]);
 
   useEffect(() => { setPage(1); }, [keyword, selectedCat, sort]);
+
+  const handleSearchInput = (val) => {
+    setInputVal(val);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (val.trim()) {
+        setSearchParams({ keyword: val.trim() });
+      } else {
+        setSearchParams({});
+      }
+    }, 400);
+  };
 
   return (
     <div className="container">
@@ -68,7 +87,7 @@ export default function Home() {
                 <div className="name">{p.name}</div>
                 <div className="price-row">
                   <span className="price">{p.price}</span>
-                  {p.original_price && <span className="original-price">¥{p.original_price}</span>}
+                  {p.original_price && <span className="original-price">{formatPrice(p.original_price)}</span>}
                 </div>
                 <div className="meta">
                   <span>销量 {p.sales}</span>

@@ -2,6 +2,10 @@ const express = require('express');
 const getDb = require('../db');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
+function escapeLike(str) {
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
 
@@ -14,7 +18,10 @@ router.get('/products', (req, res) => {
   let where = '';
   const params = [];
   const conditions = [];
-  if (keyword) { conditions.push('p.name LIKE ?'); params.push(`%${keyword}%`); }
+  if (keyword) {
+    conditions.push('p.name LIKE ? ESCAPE ?');
+    params.push(`%${escapeLike(keyword)}%`, '\\');
+  }
   if (status) { conditions.push('p.status = ?'); params.push(status); }
   if (conditions.length) where = 'WHERE ' + conditions.join(' AND ');
 
@@ -28,7 +35,8 @@ router.get('/products', (req, res) => {
 
 router.post('/products', (req, res) => {
   const { name, description, price, original_price, image, images, category_id, stock, status } = req.body;
-  if (!name || price === undefined) return res.status(400).json({ message: '商品名称和价格不能为空' });
+  if (!name || price === undefined || price === null) return res.status(400).json({ message: '商品名称和价格不能为空' });
+  if (typeof price !== 'number' || price < 0) return res.status(400).json({ message: '价格不能为负数' });
 
   const db = getDb();
   const result = db.prepare(
@@ -44,6 +52,10 @@ router.put('/products/:id', (req, res) => {
   if (!product) return res.status(404).json({ message: '商品不存在' });
 
   const { name, description, price, original_price, image, images, category_id, stock, status } = req.body;
+  if (price !== undefined && price !== null && (typeof price !== 'number' || price < 0)) {
+    return res.status(400).json({ message: '价格不能为负数' });
+  }
+
   db.prepare(
     `UPDATE products SET name=COALESCE(?,name), description=COALESCE(?,description), price=COALESCE(?,price),
      original_price=COALESCE(?,original_price), image=COALESCE(?,image), images=COALESCE(?,images),
@@ -76,11 +88,18 @@ router.get('/orders', (req, res) => {
     `SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id = u.id ${where} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
   ).all(...params, parseInt(limit), offset);
 
-  const ordersWithItems = orders.map(order => {
-    const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
-    return { ...order, items };
-  });
+  const orderIds = orders.map(o => o.id);
+  let itemsByOrder = {};
+  if (orderIds.length) {
+    const placeholders = orderIds.map(() => '?').join(',');
+    const allItems = db.prepare(`SELECT * FROM order_items WHERE order_id IN (${placeholders})`).all(...orderIds);
+    for (const item of allItems) {
+      if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+      itemsByOrder[item.order_id].push(item);
+    }
+  }
 
+  const ordersWithItems = orders.map(order => ({ ...order, items: itemsByOrder[order.id] || [] }));
   res.json({ orders: ordersWithItems, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
 });
 
@@ -105,7 +124,11 @@ router.get('/users', (req, res) => {
 
   let where = '';
   const params = [];
-  if (keyword) { where = 'WHERE username LIKE ? OR email LIKE ?'; params.push(`%${keyword}%`, `%${keyword}%`); }
+  if (keyword) {
+    const escaped = escapeLike(keyword);
+    where = 'WHERE username LIKE ? ESCAPE ? OR email LIKE ? ESCAPE ?';
+    params.push(`%${escaped}%`, '\\', `%${escaped}%`, '\\');
+  }
 
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM users ${where}`).get(...params);
   const users = db.prepare(
@@ -132,7 +155,13 @@ router.delete('/users/:id', (req, res) => {
   if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ message: '不能删除自己' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ message: '用户不存在' });
-  db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+
+  const transaction = db.transaction(() => {
+    db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
+  });
+  transaction();
+
   res.json({ message: '用户已删除' });
 });
 

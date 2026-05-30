@@ -3,6 +3,10 @@ const getDb = require('../db');
 
 const router = express.Router();
 
+function escapeLike(str) {
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
 router.get('/', (req, res) => {
   const db = getDb();
   const { keyword, category_id, min_price, max_price, sort, page = 1, limit = 20 } = req.query;
@@ -11,7 +15,10 @@ router.get('/', (req, res) => {
   let where = "WHERE p.status = 'active'";
   const params = [];
 
-  if (keyword) { where += ' AND p.name LIKE ?'; params.push(`%${keyword}%`); }
+  if (keyword) {
+    where += ' AND p.name LIKE ? ESCAPE ?';
+    params.push(`%${escapeLike(keyword)}%`, '\\');
+  }
   if (category_id) { where += ' AND p.category_id = ?'; params.push(category_id); }
   if (min_price) { where += ' AND p.price >= ?'; params.push(parseFloat(min_price)); }
   if (max_price) { where += ' AND p.price <= ?'; params.push(parseFloat(max_price)); }

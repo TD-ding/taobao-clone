@@ -6,7 +6,30 @@ const { authMiddleware, SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/register', (req, res) => {
+const registerLimiter = new Map();
+const REGISTER_WINDOW = 60 * 1000;
+const REGISTER_MAX = 3;
+
+function checkRegisterLimit(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const record = registerLimiter.get(ip) || { count: 0, start: now };
+
+  if (now - record.start > REGISTER_WINDOW) {
+    record.count = 0;
+    record.start = now;
+  }
+
+  record.count++;
+  registerLimiter.set(ip, record);
+
+  if (record.count > REGISTER_MAX) {
+    return res.status(429).json({ message: '注册请求过于频繁，请稍后再试' });
+  }
+  next();
+}
+
+router.post('/register', checkRegisterLimit, (req, res) => {
   const { username, password, email, phone } = req.body;
   if (!username || !password) return res.status(400).json({ message: '用户名和密码不能为空' });
   if (username.length < 3) return res.status(400).json({ message: '用户名至少3个字符' });

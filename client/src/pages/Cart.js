@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatPrice } from '../utils/format';
 
 export default function Cart() {
   const [items, setItems] = useState([]);
@@ -21,10 +22,13 @@ export default function Cart() {
 
   useEffect(fetchCart, [user]);
 
-  const updateQty = async (id, qty) => {
+  const updateQty = async (id, qty, stock) => {
     if (qty < 1) return;
-    await api.put(`/users/cart/${id}`, { quantity: qty });
-    setItems(items.map(i => i.id === id ? { ...i, quantity: qty } : i));
+    if (qty > stock) return;
+    try {
+      await api.put(`/users/cart/${id}`, { quantity: qty });
+      setItems(items.map(i => i.id === id ? { ...i, quantity: qty } : i));
+    } catch (e) { alert(e.message); fetchCart(); }
   };
 
   const removeItem = async (id) => {
@@ -35,7 +39,7 @@ export default function Cart() {
   const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   const handleCheckout = async () => {
-    if (!address || !phone) { setError('收货地址和联系电话不能为空'); return; }
+    if (!address || !phone) { setError('收货地址和联系电话不���为空'); return; }
     try {
       const orderItems = items.map(i => ({ product_id: i.product_id, quantity: i.quantity }));
       await api.post('/orders', { items: orderItems, address, phone, note });
@@ -61,20 +65,20 @@ export default function Cart() {
                 </div>
                 <div className="item-info">
                   <div className="name">{item.product_name}</div>
-                  <div className="price">¥{item.price}</div>
+                  <div className="price">{formatPrice(item.price)}</div>
                   {item.product_status !== 'active' && <div style={{ color: '#ff4400', fontSize: 12 }}>已下架</div>}
                 </div>
                 <div className="qty-controls">
-                  <button onClick={() => updateQty(item.id, item.quantity - 1)}>-</button>
+                  <button onClick={() => updateQty(item.id, item.quantity - 1, item.stock)}>-</button>
                   <span>{item.quantity}</span>
-                  <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
+                  <button onClick={() => updateQty(item.id, item.quantity + 1, item.stock)}>+</button>
                 </div>
-                <div className="item-total">¥{(item.price * item.quantity).toFixed(2)}</div>
+                <div className="item-total">{formatPrice(item.price * item.quantity)}</div>
                 <button className="remove-btn" onClick={() => removeItem(item.id)}>✕</button>
               </div>
             ))}
             <div className="cart-footer">
-              <div className="total">合计：<span>¥{totalPrice.toFixed(2)}</span></div>
+              <div className="total">合计：<span>{formatPrice(totalPrice)}</span></div>
               <button className="btn-primary" onClick={() => setShowCheckout(true)}>去结算</button>
             </div>
           </>
@@ -99,7 +103,7 @@ export default function Cart() {
               <label>备注（可选）</label>
               <input value={note} onChange={e => setNote(e.target.value)} placeholder="对订单有什么备注" />
             </div>
-            <div style={{ margin: '12px 0', fontSize: 16 }}>订单金额：<strong style={{ color: '#ff4400' }}>¥{totalPrice.toFixed(2)}</strong></div>
+            <div style={{ margin: '12px 0', fontSize: 16 }}>订单金额：<strong style={{ color: '#ff4400' }}>{formatPrice(totalPrice)}</strong></div>
             {error && <p className="error-msg">{error}</p>}
             <div className="actions">
               <button className="btn-outline" onClick={() => setShowCheckout(false)}>取消</button>

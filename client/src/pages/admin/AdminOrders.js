@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
+import { formatPrice, STATUS_MAP } from '../../utils/format';
 import Pagination from '../../components/Pagination';
-
-const STATUS_MAP = {
-  pending: { label: '待付款', class: 'status-pending' },
-  paid: { label: '已付款', class: 'status-paid' },
-  shipped: { label: '已发货', class: 'status-shipped' },
-  delivered: { label: '已收货', class: 'status-delivered' },
-  cancelled: { label: '已取消', class: 'status-cancelled' },
-};
 
 const NEXT_STATUS = { pending: 'paid', paid: 'shipped', shipped: 'delivered' };
 
@@ -51,7 +44,7 @@ export default function AdminOrders() {
                 <td>{o.id}</td>
                 <td>{o.username}</td>
                 <td style={{ maxWidth: 200 }}>{o.items?.map(i => `${i.product_name}x${i.quantity}`).join(', ')}</td>
-                <td style={{ color: '#ff4400', fontWeight: 'bold' }}>¥{o.total_price.toFixed(2)}</td>
+                <td style={{ color: '#ff4400', fontWeight: 'bold' }}>{formatPrice(o.total_price)}</td>
                 <td><span className={`status-badge ${STATUS_MAP[o.status]?.class}`}>{STATUS_MAP[o.status]?.label}</span></td>
                 <td style={{ fontSize: 12 }}>{o.created_at}</td>
                 <td>

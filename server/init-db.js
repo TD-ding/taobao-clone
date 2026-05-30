@@ -133,4 +133,4 @@ function initDatabase() {
   console.log('Admin user: admin / admin123');
 }
 
-initDatabase();
+module.exports = initDatabase;

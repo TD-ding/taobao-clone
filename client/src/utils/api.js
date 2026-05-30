@@ -7,6 +7,13 @@ async function request(url, options = {}) {
 
   const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
   const data = await res.json();
+
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+    throw new Error('登录已过期，请重新登录');
+  }
+
   if (!res.ok) throw new Error(data.message || '请求失败');
   return data;
 }
@@ -22,6 +29,13 @@ export const api = {
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${API_BASE}${url}`, { method: 'POST', headers, body: formData });
     const data = await res.json();
+
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      throw new Error('登录已过期，请重新登录');
+    }
+
     if (!res.ok) throw new Error(data.message || '上传失败');
     return data;
   }
