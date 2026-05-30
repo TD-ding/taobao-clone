@@ -105,7 +105,7 @@ router.get('/orders', (req, res) => {
   }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-  const countRow = db.prepare(`SELECT COUNT(*) as total FROM orders o ${where}`).get(...params);
+  const countRow = db.prepare(`SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.id ${where}`).get(...params);
   const orders = db.prepare(
     `SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id = u.id ${where} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
   ).all(...params, limit, offset);

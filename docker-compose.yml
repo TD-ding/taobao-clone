@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    volumes:
+      - db-data:/app/server/data
+      - uploads:/app/server/uploads
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  uploads:
