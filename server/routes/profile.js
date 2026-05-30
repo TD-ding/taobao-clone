@@ -3,6 +3,18 @@ const getDb = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Public: Get reviews for a product (no auth required)
+router.get('/reviews/:product_id', (req, res) => {
+  const db = getDb();
+  const reviews = db.prepare(
+    `SELECT r.*, u.username, u.avatar FROM reviews r
+     JOIN users u ON r.user_id = u.id WHERE r.product_id = ? ORDER BY r.created_at DESC`
+  ).all(req.params.product_id);
+  res.json(reviews);
+});
+
+// All routes below require auth
 router.use(authMiddleware);
 
 // Get user profile
@@ -108,16 +120,6 @@ router.get('/favorites/check/:product_id', (req, res) => {
   const db = getDb();
   const fav = db.prepare('SELECT id FROM favorites WHERE user_id = ? AND product_id = ?').get(req.user.id, req.params.product_id);
   res.json({ favorited: !!fav });
-});
-
-// Get reviews for a product
-router.get('/reviews/:product_id', (req, res) => {
-  const db = getDb();
-  const reviews = db.prepare(
-    `SELECT r.*, u.username, u.avatar FROM reviews r
-     JOIN users u ON r.user_id = u.id WHERE r.product_id = ? ORDER BY r.created_at DESC`
-  ).all(req.params.product_id);
-  res.json(reviews);
 });
 
 // Create review

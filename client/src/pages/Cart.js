@@ -43,9 +43,9 @@ export default function Cart() {
   const updateQty = async (id, qty, stock) => {
     if (qty < 1) return;
     if (qty > stock) return;
+    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
     try {
       await api.put(`/users/cart/${id}`, { quantity: qty });
-      setItems(items.map(i => i.id === id ? { ...i, quantity: qty } : i));
     } catch (e) { alert(e.message); fetchCart(); }
   };
 
