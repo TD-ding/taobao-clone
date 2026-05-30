@@ -1,10 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminLayout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, token } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (token && !user) return; // still loading
+    setLoading(false);
+  }, [token, user]);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#999' }}>
+        <div className="empty-state"><div className="icon">⏳</div><p>加载中...</p></div>
+      </div>
+    );
+  }
 
   if (!user || !isAdmin) {
     return (

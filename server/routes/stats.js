@@ -7,16 +7,17 @@ router.use(authMiddleware, adminMiddleware);
 
 router.get('/overview', (req, res) => {
   const db = getDb();
+  const row = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM products WHERE status = 'active') as totalProducts,
+      (SELECT COUNT(*) FROM users) as totalUsers,
+      (SELECT COUNT(*) FROM orders) as totalOrders,
+      (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE status != 'cancelled') as totalRevenue,
+      (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pendingOrders,
+      (SELECT COUNT(*) FROM orders WHERE status = 'shipped') as shippedOrders
+  `).get();
 
-  const totalProducts = db.prepare("SELECT COUNT(*) as count FROM products WHERE status = 'active'").get().count;
-  const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  const totalOrders = db.prepare('SELECT COUNT(*) as count FROM orders').get().count;
-  const totalRevenue = db.prepare("SELECT COALESCE(SUM(total_price), 0) as sum FROM orders WHERE status != 'cancelled'").get().sum;
-
-  const pendingOrders = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'").get().count;
-  const shippedOrders = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'shipped'").get().count;
-
-  res.json({ totalProducts, totalUsers, totalOrders, totalRevenue, pendingOrders, shippedOrders });
+  res.json(row);
 });
 
 router.get('/sales-daily', (req, res) => {

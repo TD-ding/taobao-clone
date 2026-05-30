@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, STATUS_MAP } from '../utils/format';
+import { formatPrice, formatTime, STATUS_MAP } from '../utils/format';
 import Pagination from '../components/Pagination';
 
 export default function Orders() {
@@ -10,10 +10,11 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [status, setStatus] = useState('');
+  const [cancelling, setCancelling] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const fetchOrders = useCallback(() => {
     if (!user) return;
     const params = new URLSearchParams();
     params.set('page', page);
@@ -21,12 +22,16 @@ export default function Orders() {
     api.get(`/orders?${params.toString()}`).then(data => { setOrders(data.orders); setTotalPages(data.totalPages); }).catch(() => {});
   }, [user, page, status]);
 
+  useEffect(fetchOrders, [fetchOrders]);
+
   const cancelOrder = async (id) => {
     if (!confirm('确定取消该订单？')) return;
+    setCancelling(id);
     try {
       await api.put(`/orders/${id}/cancel`);
-      setOrders(orders.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
+      fetchOrders();
     } catch (e) { alert(e.message); }
+    setCancelling(null);
   };
 
   if (!user) return <div className="container"><div className="empty-state"><div className="icon">🔒</div><p>请先登录</p></div></div>;
@@ -45,7 +50,7 @@ export default function Orders() {
       {orders.length ? orders.map(order => (
         <div key={order.id} className="order-card">
           <div className="order-header">
-            <span>订单号：{order.id} | {order.created_at}</span>
+            <span>订单号：{order.id} | {formatTime(order.created_at)}</span>
             <span className={`status-badge ${STATUS_MAP[order.status]?.class}`}>{STATUS_MAP[order.status]?.label}</span>
           </div>
           {order.items?.map(item => (
@@ -61,7 +66,11 @@ export default function Orders() {
           <div className="order-footer">
             <span>合计：<strong style={{ color: '#ff4400', fontSize: 16 }}>{formatPrice(order.total_price)}</strong></span>
             <div style={{ display: 'flex', gap: 8 }}>
-              {order.status === 'pending' && <button className="btn-outline" onClick={() => cancelOrder(order.id)}>取消订单</button>}
+              {order.status === 'pending' && (
+                <button className="btn-outline" onClick={() => cancelOrder(order.id)} disabled={cancelling === order.id}>
+                  {cancelling === order.id ? '取消中...' : '取消订单'}
+                </button>
+              )}
               <button className="btn-outline" onClick={() => navigate(`/orders/${order.id}`)}>查看详情</button>
             </div>
           </div>

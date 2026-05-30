@@ -1,6 +1,7 @@
 const express = require('express');
 const getDb = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { sanitizePagination } = require('./products');
 
 const router = express.Router();
 
@@ -54,8 +55,8 @@ router.post('/', (req, res) => {
 
 router.get('/', (req, res) => {
   const db = getDb();
-  const { status, page = 1, limit = 10 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const { status } = req.query;
+  const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit, 50);
 
   let where = 'WHERE o.user_id = ?';
   const params = [req.user.id];
@@ -64,7 +65,7 @@ router.get('/', (req, res) => {
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM orders o ${where}`).get(...params);
   const orders = db.prepare(
     `SELECT o.* FROM orders o ${where} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
-  ).all(...params, parseInt(limit), offset);
+  ).all(...params, limit, offset);
 
   const orderIds = orders.map(o => o.id);
   let itemsByOrder = {};
@@ -78,7 +79,7 @@ router.get('/', (req, res) => {
   }
 
   const ordersWithItems = orders.map(order => ({ ...order, items: itemsByOrder[order.id] || [] }));
-  res.json({ orders: ordersWithItems, total: countRow.total, page: parseInt(page), totalPages: Math.ceil(countRow.total / parseInt(limit)) });
+  res.json({ orders: ordersWithItems, total: countRow.total, page, totalPages: Math.ceil(countRow.total / limit) });
 });
 
 router.get('/:id', (req, res) => {
