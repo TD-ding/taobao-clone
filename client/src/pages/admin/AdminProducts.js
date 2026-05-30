@@ -141,6 +141,10 @@ export default function AdminProducts() {
                 <input type="file" accept="image/*" onChange={handleUpload} disabled={uploading} />
                 {uploading && <span style={{ fontSize: 12, color: '#999' }}>上传中...</span>}
               </div>
+              <div className="form-group">
+                <label>多图（JSON数组，如 ["url1","url2"]）</label>
+                <input value={form.images || ''} onChange={e => setForm({ ...form, images: e.target.value })} placeholder='["http://...","http://..."]' />
+              </div>
               <div className="form-group"><label>状态</label>
                 <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6 }}>
                   <option value="active">上架</option><option value="inactive">下架</option>

@@ -8,6 +8,8 @@ export default function Cart() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddr, setSelectedAddr] = useState(null);
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
@@ -22,6 +24,21 @@ export default function Cart() {
   };
 
   useEffect(fetchCart, [user]);
+
+  const fetchAddresses = () => {
+    if (!user) return;
+    api.get('/profile/addresses').then(data => {
+      setAddresses(data);
+      const defaultAddr = data.find(a => a.is_default);
+      if (defaultAddr) {
+        setSelectedAddr(defaultAddr.id);
+        setAddress(defaultAddr.address);
+        setPhone(defaultAddr.phone);
+      }
+    }).catch(() => {});
+  };
+
+  useEffect(fetchAddresses, [user]);
 
   const updateQty = async (id, qty, stock) => {
     if (qty < 1) return;
@@ -40,6 +57,15 @@ export default function Cart() {
 
   const activeItems = items.filter(i => i.product_status === 'active');
   const activeTotal = activeItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  const handleAddrSelect = (addrId) => {
+    setSelectedAddr(addrId);
+    const addr = addresses.find(a => a.id === addrId);
+    if (addr) {
+      setAddress(addr.address);
+      setPhone(addr.phone);
+    }
+  };
 
   const handleCheckout = async () => {
     if (!address || !phone) { setError('收货地址和联系电话不能为空'); return; }
@@ -111,13 +137,24 @@ export default function Cart() {
         <div className="modal-overlay" onClick={() => setShowCheckout(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>确认订单</h3>
+            {addresses.length > 0 && (
+              <div className="form-group">
+                <label>选择收货地址</label>
+                <select value={selectedAddr || ''} onChange={e => handleAddrSelect(parseInt(e.target.value))} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6 }}>
+                  <option value="">手动填写</option>
+                  {addresses.map(a => (
+                    <option key={a.id} value={a.id}>{a.name || user.username} - {a.phone} - {a.address}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>收货地址</label>
-              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="请输入收货地址" />
+              <input value={address} onChange={e => { setAddress(e.target.value); setSelectedAddr(null); }} placeholder="请输入收货地址" />
             </div>
             <div className="form-group">
               <label>联系电话</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="请输入联系电话" />
+              <input value={phone} onChange={e => { setPhone(e.target.value); setSelectedAddr(null); }} placeholder="请输入联系电话" />
             </div>
             <div className="form-group">
               <label>备注（可选）</label>

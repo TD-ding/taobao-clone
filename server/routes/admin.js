@@ -83,12 +83,18 @@ router.delete('/products/:id', (req, res) => {
 // Orders management
 router.get('/orders', (req, res) => {
   const db = getDb();
-  const { status } = req.query;
+  const { status, keyword } = req.query;
   const { page, limit, offset } = sanitizePagination(req.query.page, req.query.limit);
 
-  let where = '';
+  const conditions = [];
   const params = [];
-  if (status) { where = 'WHERE o.status = ?'; params.push(status); }
+  if (status) { conditions.push('o.status = ?'); params.push(status); }
+  if (keyword) {
+    const escaped = escapeLike(keyword);
+    conditions.push('(o.id LIKE ? ESCAPE ? OR u.username LIKE ? ESCAPE ?)');
+    params.push(`%${escaped}%`, '\\', `%${escaped}%`, '\\');
+  }
+  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
   const countRow = db.prepare(`SELECT COUNT(*) as total FROM orders o ${where}`).get(...params);
   const orders = db.prepare(
@@ -121,6 +127,50 @@ router.put('/orders/:id/status', (req, res) => {
 
   db.prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(status, req.params.id);
   res.json({ message: '订单状态已更新' });
+});
+
+// Categories CRUD
+router.get('/categories', (req, res) => {
+  const db = getDb();
+  const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all();
+  res.json(categories);
+});
+
+router.post('/categories', (req, res) => {
+  const { name, icon, sort_order } = req.body;
+  if (!name) return res.status(400).json({ message: '分类名称不能为空' });
+  const db = getDb();
+  const result = db.prepare('INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)')
+    .run(name, icon || null, sort_order || 0);
+  res.json({ message: '分类创建成功', id: result.lastInsertRowid });
+});
+
+router.put('/categories/:id', (req, res) => {
+  const { name, icon, sort_order } = req.body;
+  const db = getDb();
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ message: '分类不存在' });
+
+  const updates = {};
+  const values = [];
+  if (name !== undefined) { updates.name = name; values.push(name); }
+  if (icon !== undefined) { updates.icon = icon === '' ? null : icon; values.push(updates.icon); }
+  if (sort_order !== undefined) { updates.sort_order = sort_order; values.push(sort_order); }
+  if (!values.length) return res.status(400).json({ message: '没有要更新的字段' });
+
+  const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+  values.push(req.params.id);
+  db.prepare(`UPDATE categories SET ${setClause} WHERE id = ?`).run(...values);
+  res.json({ message: '分类更新成功' });
+});
+
+router.delete('/categories/:id', (req, res) => {
+  const db = getDb();
+  const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+  if (!cat) return res.status(404).json({ message: '分类不存在' });
+  db.prepare('UPDATE products SET category_id = NULL WHERE category_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+  res.json({ message: '分类已删除' });
 });
 
 // Users management
@@ -167,6 +217,9 @@ router.delete('/users/:id', (req, res) => {
     db.prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = ?)').run(req.params.id);
     db.prepare('DELETE FROM orders WHERE user_id = ?').run(req.params.id);
     db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM favorites WHERE user_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM addresses WHERE user_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM reviews WHERE user_id = ?').run(req.params.id);
     db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
   });
   transaction();

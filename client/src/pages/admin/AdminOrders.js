@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../utils/api';
 import { formatPrice, STATUS_MAP } from '../../utils/format';
 import Pagination from '../../components/Pagination';
@@ -10,14 +10,25 @@ export default function AdminOrders() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [status, setStatus] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedKeyword(keyword), 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [keyword]);
 
   const fetchOrders = () => {
     const params = new URLSearchParams();
-    params.set('page', page); if (status) params.set('status', status);
+    params.set('page', page);
+    if (status) params.set('status', status);
+    if (debouncedKeyword) params.set('keyword', debouncedKeyword);
     api.get(`/admin/orders?${params.toString()}`).then(data => { setOrders(data.orders); setTotalPages(data.totalPages); }).catch(() => {});
   };
 
-  useEffect(fetchOrders, [page, status]);
+  useEffect(fetchOrders, [page, status, debouncedKeyword]);
 
   const updateStatus = async (id, newStatus) => {
     const label = newStatus === 'cancelled' ? '取消' : STATUS_MAP[newStatus]?.label || newStatus;
@@ -30,6 +41,7 @@ export default function AdminOrders() {
       <div className="admin-header"><h2>订单管理</h2></div>
 
       <div className="filters">
+        <input placeholder="搜索订单号/用户名..." value={keyword} onChange={e => setKeyword(e.target.value)} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4 }} />
         {['', 'pending', 'paid', 'shipped', 'delivered', 'cancelled'].map(s => (
           <button key={s} className={`filter-btn ${status === s ? 'active' : ''}`} onClick={() => { setStatus(s); setPage(1); }}>
             {s ? STATUS_MAP[s].label : '全部'}

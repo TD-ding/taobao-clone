@@ -6,9 +6,9 @@
 
 | 模块 | 功能 |
 |------|------|
-| 用户端 | 商品浏览 / 搜索 / 分类筛选 / 排序、购物车、下单、订单查看、注册登录 |
-| 管理后台 | 数据看板、商品增删改查（含图片上传 / 上下架）、订单状态管理、用户角色管理 |
-| 后端 API | JWT 认证、商品 / 购物车 / 订单 CRUD、图片上传、数据统计、注册限流 |
+| 用户端 | 商品浏览 / 搜索 / 分类筛选 / 排序、商品收藏、购物车、下单、订单查看、商品评价、个人中心（编辑资料 / 收货地址管理）、注册登录 |
+| 管理后台 | 数据看板（含销售趋势图）、商品增删改查（含多图 / 图片上传 / 上下架）、分类管理、订单管理（含搜索）、用户角色管理 |
+| 后端 API | JWT 认证、商品 / 购物车 / 订单 / 收藏 / 评价 / 地址 CRUD、图片上传、数据统计、注册限流 |
 
 管理员账号：`admin` / `admin123`
 
@@ -27,7 +27,7 @@
 ```
 taobao-clone/
 ├── server/                         # 后端
-│   ├── server.js                   # Express 入口（含自动初始化数据���）
+│   ├── server.js                   # Express 入口（含自动初始化数据库）
 │   ├── db.js                       # SQLite 连接
 │   ├── init-db.js                  # 建表 & 种子数据（可被 require）
 │   ├── init-db-cli.js              # 单独运行初始化的入口
@@ -38,10 +38,11 @@ taobao-clone/
 │   │   ├── auth.js                 # 注册（含限流）/ 登录
 │   │   ├── products.js             # 商品列表 / 详情 / 分类（含分页校验）
 │   │   ├── orders.js               # 下单 / 查询 / 取消
-│   │   ├─��� users.js                # 购物车 CRUD
-│   │   ├── admin.js                # 管理员：商品 / 订单 / 用户
+│   │   ├── users.js                # 购物车 CRUD
+│   │   ├── profile.js              # 个人资料 / 收货地址 / 收藏 / 评价
+│   │   ├── admin.js                # 管理员：商品 / 订单 / 用户 / 分类
 │   │   ├── upload.js               # 图片上传（crypto 随机文件名）
-│   │   └── stats.js                # 统计概览 / 排行
+│   │   └── stats.js                # 统计概览 / 销售趋势 / 排行
 │   └── uploads/                    # 上传文件目录
 ├── client/                         # 前端
 │   └── src/
@@ -56,17 +57,21 @@ taobao-clone/
 │       │   └── Pagination.js       # 分页
 │       ├── pages/                  # 用户端页面
 │       │   ├── Home.js
-│       │   ├── ProductDetail.js
-│       │   ├── Cart.js
+│       │   ├── ProductDetail.js    # 含多图轮播、收藏、评价
+│       │   ├── Cart.js             # 含地址选择
 │       │   ├── Login.js
 │       │   ├── Register.js
 │       │   ├── Orders.js
-│       │   └── OrderDetail.js
+│       │   ├── OrderDetail.js
+│       │   ├── Profile.js          # 个人中心（资料编辑 / 地址管理）
+│       │   ├── Favorites.js        # 我的收藏
+│       │   └── NotFound.js         # 404 页面
 │       ├── pages/admin/            # 管理后台页面
 │       │   ├── AdminLayout.js
-│       │   ├── Dashboard.js
+│       │   ├── Dashboard.js        # 含销售趋势折线图
 │       │   ├── AdminProducts.js
-│       │   ├── AdminOrders.js
+│       │   ├── AdminCategories.js  # 分类管理
+│       │   ├── AdminOrders.js      # 含搜索
 │       │   └── AdminUsers.js
 │       └── styles/
 │           └── App.css
@@ -114,4 +119,6 @@ cd client && npm start
 ### 5. 访问
 
 - 商城首页：http://localhost:3000
+- 个人中心：http://localhost:3000/profile
+- 我的收藏：http://localhost:3000/favorites
 - 管理后台：http://localhost:3000/admin
