@@ -13,7 +13,7 @@ export default function Cart() {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshCartCount } = useAuth();
   const navigate = useNavigate();
 
   const fetchCart = () => {
@@ -34,26 +34,35 @@ export default function Cart() {
 
   const removeItem = async (id) => {
     await api.delete(`/users/cart/${id}`);
+    refreshCartCount();
     setItems(items.filter(i => i.id !== id));
   };
 
-  const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const hasOffShelf = items.some(i => i.product_status !== 'active');
+  const activeItems = items.filter(i => i.product_status === 'active');
+  const activeTotal = activeItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   const handleCheckout = async () => {
     if (!address || !phone) { setError('收货地址和联系电话不能为空'); return; }
     setSubmitting(true);
     setError('');
     try {
-      const orderItems = items.filter(i => i.product_status === 'active').map(i => ({ product_id: i.product_id, quantity: i.quantity }));
+      const orderItems = activeItems.map(i => ({ product_id: i.product_id, quantity: i.quantity }));
       if (!orderItems.length) { setError('没有可下单的商品'); setSubmitting(false); return; }
       await api.post('/orders', { items: orderItems, address, phone, note });
+      refreshCartCount();
       setShowCheckout(false);
       alert('下单成功！');
       navigate('/orders');
     } catch (e) { setError(e.message); }
     setSubmitting(false);
   };
+
+  useEffect(() => {
+    if (!showCheckout) return;
+    const handleEsc = (e) => { if (e.key === 'Escape') setShowCheckout(false); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showCheckout]);
 
   if (!user) return <div className="container"><div className="empty-state"><div className="icon">🔒</div><p>请先登录</p><button className="btn-primary" onClick={() => navigate('/login')}>去登录</button></div></div>;
 
@@ -85,8 +94,10 @@ export default function Cart() {
               </div>
             ))}
             <div className="cart-footer">
-              <div className="total">合计：<span>{formatPrice(totalPrice)}</span></div>
-              <button className="btn-primary" onClick={() => setShowCheckout(true)} disabled={hasOffShelf && !items.some(i => i.product_status === 'active')}>
+              <div className="total">合计：<span>{formatPrice(activeTotal)}</span>
+                {activeItems.length < items.length && <span style={{ fontSize: 12, color: '#999', marginLeft: 8 }}>(已扣除下架商品)</span>}
+              </div>
+              <button className="btn-primary" onClick={() => setShowCheckout(true)} disabled={activeItems.length === 0}>
                 去结算
               </button>
             </div>
@@ -112,7 +123,7 @@ export default function Cart() {
               <label>备注（可选）</label>
               <input value={note} onChange={e => setNote(e.target.value)} placeholder="对订单有什么备注" />
             </div>
-            <div style={{ margin: '12px 0', fontSize: 16 }}>订单金额：<strong style={{ color: '#ff4400' }}>{formatPrice(totalPrice)}</strong></div>
+            <div style={{ margin: '12px 0', fontSize: 16 }}>订单金额：<strong style={{ color: '#ff4400' }}>{formatPrice(activeTotal)}</strong></div>
             {error && <p className="error-msg">{error}</p>}
             <div className="actions">
               <button className="btn-outline" onClick={() => setShowCheckout(false)}>取消</button>

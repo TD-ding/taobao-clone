@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     if (token) {
@@ -14,6 +15,16 @@ export function AuthProvider({ children }) {
         .catch(() => { localStorage.removeItem('token'); setToken(null); setUser(null); });
     }
   }, [token]);
+
+  const refreshCartCount = () => {
+    if (token && user) {
+      api.get('/users/cart').then(items => setCartCount(items.length)).catch(() => setCartCount(0));
+    } else {
+      setCartCount(0);
+    }
+  };
+
+  useEffect(refreshCartCount, [user]);
 
   const login = (tokenValue, userData) => {
     localStorage.setItem('token', tokenValue);
@@ -25,10 +36,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setCartCount(0);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAdmin: user?.role === 'admin', cartCount, refreshCartCount }}>
       {children}
     </AuthContext.Provider>
   );

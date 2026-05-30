@@ -7,7 +7,7 @@ import { formatPrice } from '../utils/format';
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshCartCount } = useAuth();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [msg, setMsg] = useState('');
@@ -23,6 +23,7 @@ export default function ProductDetail() {
     setAdding(true);
     try {
       await api.post('/users/cart', { product_id: parseInt(id), quantity });
+      refreshCartCount();
       setMsg('已加入购物车');
       setTimeout(() => setMsg(''), 2000);
     } catch (e) { setMsg(e.message); }
@@ -34,6 +35,7 @@ export default function ProductDetail() {
     setBuying(true);
     try {
       await api.post('/users/cart', { product_id: parseInt(id), quantity });
+      refreshCartCount();
       navigate('/cart');
     } catch (e) { setMsg(e.message); }
     setBuying(false);
@@ -42,9 +44,11 @@ export default function ProductDetail() {
   if (!product) return <div className="container"><div className="empty-state"><div className="icon">⏳</div><p>加载中...</p></div></div>;
 
   const isOffShelf = product.status !== 'active';
+  const isSoldOut = product.stock === 0;
 
   return (
     <div className="container">
+      <button className="back-btn" onClick={() => navigate(-1)}>← 返回</button>
       <div className="product-detail">
         <div className="main-img">
           {product.image ? <img src={product.image} alt={product.name} /> : <span className="placeholder">📦</span>}
@@ -52,28 +56,28 @@ export default function ProductDetail() {
         <div className="detail-info">
           <h1>{product.name}</h1>
           <div className="price-box">
-            <span className="current">{product.price}</span>
+            <span className="current">{formatPrice(product.price)}</span>
             {product.original_price && <span className="original">{formatPrice(product.original_price)}</span>}
           </div>
           <div className="meta-info">
             <span>分类：{product.category_name || '未分类'}</span>
             <span>销量：{product.sales}</span>
-            <span>库存：{product.stock}</span>
+            {!isSoldOut && <span>库存：{product.stock}件</span>}
           </div>
+          {isOffShelf && <div style={{ color: '#ff4400', fontWeight: 'bold', margin: '12px 0', fontSize: 16 }}>该商品已下架</div>}
+          {isSoldOut && !isOffShelf && <div style={{ color: '#ff4400', fontWeight: 'bold', margin: '12px 0', fontSize: 16 }}>该商品已售罄</div>}
           <p style={{ color: '#666', fontSize: 14, lineHeight: 1.8, margin: '12px 0' }}>{product.description}</p>
-          {isOffShelf && <div style={{ color: '#ff4400', fontWeight: 'bold', margin: '12px 0' }}>该商品已下架</div>}
           <div className="quantity-selector">
             <span>数量：</span>
-            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={isOffShelf}>-</button>
+            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={isOffShelf || isSoldOut}>-</button>
             <span>{quantity}</span>
-            <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} disabled={isOffShelf}>+</button>
-            <span style={{ fontSize: 12, color: '#999' }}>(库存{product.stock}件)</span>
+            <button onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} disabled={isOffShelf || isSoldOut}>+</button>
           </div>
           <div className="actions">
-            <button className="btn-secondary" onClick={addToCart} disabled={isOffShelf || adding}>
+            <button className="btn-secondary" onClick={addToCart} disabled={isOffShelf || isSoldOut || adding}>
               {adding ? '添加中...' : '加入购物车'}
             </button>
-            <button className="btn-primary" onClick={buyNow} disabled={isOffShelf || buying}>
+            <button className="btn-primary" onClick={buyNow} disabled={isOffShelf || isSoldOut || buying}>
               {buying ? '处理中...' : '立即购买'}
             </button>
           </div>

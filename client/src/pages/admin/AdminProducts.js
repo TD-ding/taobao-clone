@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../utils/api';
 import { formatPrice } from '../../utils/format';
 import Pagination from '../../components/Pagination';
@@ -9,22 +9,30 @@ export default function AdminProducts() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [status, setStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [form, setForm] = useState({ name: '', description: '', price: '', original_price: '', category_id: '', stock: '', status: 'active', image: '' });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const debounceRef = useRef(null);
 
   useEffect(() => { api.get('/products/categories').then(setCategories).catch(() => {}); }, []);
 
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedKeyword(keyword), 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [keyword]);
+
   const fetchProducts = () => {
     const params = new URLSearchParams();
-    params.set('page', page); if (keyword) params.set('keyword', keyword); if (status) params.set('status', status);
+    params.set('page', page); if (debouncedKeyword) params.set('keyword', debouncedKeyword); if (status) params.set('status', status);
     api.get(`/admin/products?${params.toString()}`).then(data => { setProducts(data.products); setTotalPages(data.totalPages); }).catch(() => {});
   };
 
-  useEffect(fetchProducts, [page, keyword, status]);
+  useEffect(fetchProducts, [page, debouncedKeyword, status]);
 
   const openCreate = () => { setEditProduct(null); setForm({ name: '', description: '', price: '', original_price: '', category_id: '', stock: '', status: 'active', image: '' }); setShowModal(true); setError(''); };
 
