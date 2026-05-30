@@ -21,17 +21,26 @@
 | 数据库 | SQLite (better-sqlite3) |
 | 认证 | JWT (jsonwebtoken + bcryptjs) |
 | 文件上传 | Multer |
+| 测试 | Jest、Supertest（后端）、React Testing Library（前端） |
+| 部署 | Docker、GitHub Actions CI |
 
 ## 目录结构
 
 ```
 taobao-clone/
+├── .github/workflows/
+│   └── ci.yml                      # GitHub Actions CI 配置
+├── Dockerfile                      # Docker 镜像构建
+├── docker-compose.yml              # Docker Compose 编排
+├── .dockerignore                   # Docker 构建忽略
 ├── server/                         # 后端
 │   ├── server.js                   # Express 入口（含自动初始化数据库）
 │   ├── db.js                       # SQLite 连接
 │   ├── init-db.js                  # 建表 & 种子数据（可被 require）
 │   ├── init-db-cli.js              # 单独运行初始化的入口
 │   ├── .env.example                # 环境变量模板
+│   ├── tests/                      # 后端单元测试
+│   │   └── api.test.js             # API 集成测试
 │   ├── middleware/
 │   │   └── auth.js                 # JWT 认证 / 管理员权限中间件
 │   ├── routes/
@@ -47,14 +56,19 @@ taobao-clone/
 ├── client/                         # 前端
 │   └── src/
 │       ├── App.js                  # 路由配置
+│       ├── setupTests.js           # Jest 测试配置
 │       ├── context/
 │       │   └── AuthContext.js      # 全局用户状态
 │       ├── utils/
 │       │   ├── api.js              # 请求封装（含 401 自动跳转）
-│       │   └── format.js           # 价格格式化 / 状态映射 / 时间格式化
+│       │   └── format.js           # 价格格���化 / 状态映射 / 时间格式化
 │       ├── components/
 │       │   ├── Navbar.js           # 顶部导航（含购物车数量、移动端折叠菜单）
 │       │   └── Pagination.js       # 分页
+│       ├── tests/                  # 前端单元测试
+│       │   ├── format.test.js      # 工具函数测试
+│       │   ├── Pagination.test.js  # 分页组件测试
+│       │   └── NotFound.test.js    # 404 页面测试
 │       ├── pages/                  # 用户端页面
 │       │   ├── Home.js
 │       │   ├── ProductDetail.js    # 含多图轮播、收藏、评价
@@ -122,3 +136,42 @@ cd client && npm start
 - 个人中心：http://localhost:3000/profile
 - 我的收藏：http://localhost:3000/favorites
 - 管理后台：http://localhost:3000/admin
+
+## 运行测试
+
+```bash
+# 后端测试（40 个用例）
+cd server && npm test
+
+# 前端测试
+cd client && npm test
+
+# 前端 CI 模式（无交互 + 覆盖率）
+cd client && npm run test:ci
+```
+
+## Docker 部署
+
+```bash
+# 构建并启动
+docker compose up -d
+
+# 访问
+open http://localhost:3001
+```
+
+环境变量可在 `docker-compose.yml` 或 `.env` 中配置：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | 3001 | 服务端口 |
+| `JWT_SECRET` | change_this_in_production | JWT 签名密钥 |
+| `CORS_ORIGIN` | http://localhost:3000 | 允许的前端来源 |
+
+## CI
+
+项目配置了 GitHub Actions（`.github/workflows/ci.yml`），在 push 和 PR 时自动运行：
+
+1. **server-test** — 后端 API 测试
+2. **client-test** — 前端测试 + 构建验证
+3. **docker-build** — Docker 镜像构建（依赖测试通过）
