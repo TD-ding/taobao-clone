@@ -36,6 +36,7 @@ export default function AdminLayout() {
         <nav>
           <NavLink to="dashboard" className={({ isActive }) => isActive ? 'active' : ''}>📊 数据看板</NavLink>
           <NavLink to="products" className={({ isActive }) => isActive ? 'active' : ''}>📦 商品管理</NavLink>
+          <NavLink to="categories" className={({ isActive }) => isActive ? 'active' : ''}>🏷️ 分类管理</NavLink>
           <NavLink to="orders" className={({ isActive }) => isActive ? 'active' : ''}>📋 订单管理</NavLink>
           <NavLink to="users" className={({ isActive }) => isActive ? 'active' : ''}>👥 用户管理</NavLink>
         </nav>

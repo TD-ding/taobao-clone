@@ -47,9 +47,11 @@ export default function Navbar() {
             <Link to="/cart" onClick={() => setMenuOpen(false)}>
               购物车{cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </Link>
+            <Link to="/favorites" onClick={() => setMenuOpen(false)}>收藏</Link>
             <Link to="/orders" onClick={() => setMenuOpen(false)}>我的订单</Link>
+            <Link to="/profile" onClick={() => setMenuOpen(false)}>{user.username}</Link>
             {isAdmin && <Link to="/admin" onClick={() => setMenuOpen(false)}>管理后台</Link>}
-            <button onClick={() => { logout(); setMenuOpen(false); }}>退出 ({user.username})</button>
+            <button onClick={() => { logout(); setMenuOpen(false); }}>退出</button>
           </>
         ) : (
           <>
