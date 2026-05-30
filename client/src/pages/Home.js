@@ -80,16 +80,17 @@ export default function Home() {
             <div key={p.id} className="product-card" onClick={() => navigate(`/product/${p.id}`)}>
               <div className="img-wrap">
                 {p.image ? <img src={p.image} alt={p.name} /> : <span className="placeholder">📦</span>}
+                {p.stock > 0 && p.stock <= 10 && <span className="stock-hint">仅剩{p.stock}件</span>}
+                {p.stock === 0 && <span className="stock-hint sold-out">已售罄</span>}
               </div>
               <div className="info">
                 <div className="name">{p.name}</div>
                 <div className="price-row">
-                  <span className="price">{p.price}</span>
+                  <span className="price">{formatPrice(p.price)}</span>
                   {p.original_price && <span className="original-price">{formatPrice(p.original_price)}</span>}
                 </div>
                 <div className="meta">
                   <span>销量 {p.sales}</span>
-                  <span>库存 {p.stock}</span>
                 </div>
               </div>
             </div>

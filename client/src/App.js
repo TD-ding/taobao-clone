@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import NotFound from './pages/NotFound';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/AdminProducts';
@@ -35,6 +36,7 @@ function App() {
             <Route path="orders" element={<AdminOrders />} />
             <Route path="users" element={<AdminUsers />} />
           </Route>
+          <Route path="*" element={<><Navbar /><NotFound /></>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

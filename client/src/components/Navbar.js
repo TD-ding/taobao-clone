@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../utils/api';
 
 export default function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, cartCount } = useAuth();
   const [keyword, setKeyword] = useState('');
-  const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -16,14 +14,6 @@ export default function Navbar() {
     const kw = searchParams.get('keyword') || '';
     setKeyword(kw);
   }, [searchParams]);
-
-  useEffect(() => {
-    if (user) {
-      api.get('/users/cart').then(items => setCartCount(items.length)).catch(() => {});
-    } else {
-      setCartCount(0);
-    }
-  }, [user]);
 
   const handleSearchInput = (val) => {
     setKeyword(val);

@@ -20,6 +20,8 @@ export default function AdminOrders() {
   useEffect(fetchOrders, [page, status]);
 
   const updateStatus = async (id, newStatus) => {
+    const label = newStatus === 'cancelled' ? '取消' : STATUS_MAP[newStatus]?.label || newStatus;
+    if (!confirm(`确定将订单状态改为「${label}」？`)) return;
     try { await api.put(`/admin/orders/${id}/status`, { status: newStatus }); fetchOrders(); } catch (e) { alert(e.message); }
   };
 

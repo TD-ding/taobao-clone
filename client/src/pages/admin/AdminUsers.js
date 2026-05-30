@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../utils/api';
 import Pagination from '../../components/Pagination';
 
@@ -7,14 +7,22 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedKeyword(keyword), 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [keyword]);
 
   const fetchUsers = () => {
     const params = new URLSearchParams();
-    params.set('page', page); if (keyword) params.set('keyword', keyword);
+    params.set('page', page); if (debouncedKeyword) params.set('keyword', debouncedKeyword);
     api.get(`/admin/users?${params.toString()}`).then(data => { setUsers(data.users); setTotalPages(data.totalPages); }).catch(() => {});
   };
 
-  useEffect(fetchUsers, [page, keyword]);
+  useEffect(fetchUsers, [page, debouncedKeyword]);
 
   const toggleRole = async (id, currentRole) => {
     const newRole = currentRole === 'admin' ? 'customer' : 'admin';
